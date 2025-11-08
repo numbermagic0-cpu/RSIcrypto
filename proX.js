@@ -1,4 +1,4 @@
-// proX.js - RSI7 M15 (actualiza cada 60s, sin recargar, sin ralentizar)
+// proX.js - RSI7 M15 (actualiza cada 60s + ordenar RSI con clic)
 
 function calculateRSI(data, period = 7) {
     if (data.length < period + 1) return 0;
@@ -20,10 +20,10 @@ function calculateRSI(data, period = 7) {
     return 100 - (100 / (1 + avgGain / avgLoss));
 }
 
-// Cache de símbolos (para no recargar lista)
 let allSymbols = [];
+let sortDirection = 'desc'; // 'desc' = mayor a menor, 'asc' = menor a mayor
 
-// Primera carga completa
+// Cargar símbolos una vez
 async function loadAllSymbols() {
     const tbody = document.querySelector('#cryptoPairs tbody');
     tbody.innerHTML = '<tr><td colspan="2" class="loading">Cargando pares...</td></tr>';
@@ -44,17 +44,38 @@ async function loadAllSymbols() {
             `;
             tbody.appendChild(row);
         }
+
+        // Activar ordenamiento al hacer clic en el encabezado RSI
+        document.querySelector('#rsiHeader').style.cursor = 'pointer';
+        document.querySelector('#rsiHeader').onclick = () => {
+            sortDirection = sortDirection === 'desc' ? 'asc' : 'desc';
+            sortTableByRSI();
+        };
+
     } catch (e) {
         tbody.innerHTML = '<tr><td colspan="2">Error cargando símbolos</td></tr>';
     }
 }
 
-// Actualizar solo RSI (sin tocar estructura)
+// Ordenar tabla por RSI
+function sortTableByRSI() {
+    const rows = Array.from(document.querySelectorAll('#cryptoPairs tbody tr'));
+    rows.sort((a, b) => {
+        const rsiA = parseFloat(a.querySelector('.rsi-value').textContent) || 0;
+        const rsiB = parseFloat(b.querySelector('.rsi-value').textContent) || 0;
+        return sortDirection === 'desc' ? rsiB - rsiA : rsiA - rsiB;
+    });
+
+    const tbody = document.querySelector('#cryptoPairs tbody');
+    tbody.innerHTML = '';
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+// Actualizar solo valores RSI
 async function updateRSIValues() {
     const rows = document.querySelectorAll('#cryptoPairs tbody tr');
     if (rows.length === 0 || allSymbols.length === 0) return;
 
-    // Procesar en lotes de 10 para no bloquear UI
     for (let i = 0; i < allSymbols.length; i += 10) {
         const batch = allSymbols.slice(i, i + 10);
         await Promise.all(batch.map(async (symbol) => {
@@ -66,7 +87,7 @@ async function updateRSIValues() {
                 if (data.length < 8) return;
 
                 const rsi = calculateRSI(data);
-                if (rsi === 100) return; // Ocultar RSI 100
+                if (rsi === 100) return;
 
                 const rsiCell = document.querySelector(`#row-${symbol} .rsi-value`);
                 if (rsiCell) {
@@ -77,17 +98,17 @@ async function updateRSIValues() {
                         rsi <= 20 ? '#e74c3c' : 
                         'transparent';
                 }
-            } catch (e) {
-                // Silenciar errores individuales
-            }
+            } catch (e) {}
         }));
-        // Pequeña pausa entre lotes
         await new Promise(r => setTimeout(r, 50));
     }
+
+    // Reordenar después de actualizar
+    sortTableByRSI();
 }
 
 // Iniciar
 loadAllSymbols().then(() => {
-    updateRSIValues(); // Primera actualización
-    setInterval(updateRSIValues, 60000); // Cada 60 segundos
+    updateRSIValues();
+    setInterval(updateRSIValues, 60000); // cada 60s
 });
