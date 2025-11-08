@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabla de Futuros con RSI y EMA</title>
+    <style>
+        body {
+            background-color: #77839b; /* Color de fondo gris */
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+            cursor: pointer;
+        }
+        .sorted-asc::after {
+            content: "🔼";
+        }
+        .sorted-desc::after {
+            content: "🔽";
+        }
+    </style>
+</head>
+<body>
+    <h1>Tabla de Futuros con RSI y EMA</h1>
+    <table id="cryptoPairs">
+        <thead>
+            <tr>
+                <th>Símbolo</th>
+                <th id="rsiHeader">RSI7 (1h) <span class="sort-indicator"></span></th>
+                <th id="emaHeader200">Diferencia con EMA200 (m15) <span class="sort-indicator"></span></th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+    <script src="proX.js"></script>
+</body>
+</html>
