@@ -1,4 +1,4 @@
-// proX.js - RSI7 M15 para TODOS los pares de futuros (SIN PROXY)
+// proX.js - RSI7 M15 para TODOS los pares (SIN RSI 100)
 
 function calculateRSI(data, period = 7) {
     if (data.length < period + 1) return 0;
@@ -25,7 +25,7 @@ async function updateTable() {
     tbody.innerHTML = '<tr><td colspan="2" class="loading">Cargando todos los pares...</td></tr>';
 
     try {
-        // 1. Obtener TODOS los símbolos (sin proxy)
+        // 1. Obtener TODOS los símbolos
         const symbolsRes = await fetch('https://fapi.binance.com/fapi/v1/ticker/price');
         if (!symbolsRes.ok) throw new Error('No se pudo cargar símbolos');
         const symbolsData = await symbolsRes.json();
@@ -33,7 +33,7 @@ async function updateTable() {
 
         tbody.innerHTML = '';
 
-        // 2. Procesar TODOS los símbolos (con delay para no saturar)
+        // 2. Procesar cada símbolo
         for (let i = 0; i < symbolList.length; i++) {
             const symbol = symbolList[i];
             const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=15m&limit=100`;
@@ -44,17 +44,22 @@ async function updateTable() {
                 const data = await res.json();
                 if (data.length < 8) continue;
 
-                const rsi = calculateRSI(data).toFixed(2);
+                const rsi = calculateRSI(data);
+                const rsiRounded = rsi.toFixed(2);
+
+                // FILTRAR: NO MOSTRAR RSI = 100
+                if (rsi === 100) continue;
+
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${symbol}</td>
                     <td style="background-color: ${rsi >= 80 ? '#27ae60' : rsi <= 20 ? '#e74c3c' : 'transparent'}">
-                        ${rsi}
+                        ${rsiRounded}
                     </td>
                 `;
                 tbody.appendChild(row);
 
-                // Delay para no bloquear
+                // Pequeño delay cada 10 símbolos
                 if (i % 10 === 0) await new Promise(r => setTimeout(r, 50));
             } catch (e) {
                 console.log(`Error con ${symbol}`);
@@ -62,7 +67,7 @@ async function updateTable() {
         }
 
         if (tbody.children.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="2">Sin datos</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="2">No hay datos válidos (todos RSI 100)</td></tr>';
         }
     } catch (e) {
         tbody.innerHTML = '<tr><td colspan="2">Error de conexión</td></tr>';
@@ -72,4 +77,4 @@ async function updateTable() {
 
 // Iniciar
 updateTable();
-setInterval(updateTable, 600000); // cada 10 min (para no saturar)
+setInterval(updateTable, 600000); // cada 10 min
