@@ -26,7 +26,7 @@ function getTimeSinceRSI80(data) {
     let lastTime = null;
     for (let i = 7; i < data.length; i++) {
         const rsi = calculateRSI(data.slice(i - 7, i + 1));
-        if (rsi > 80) {
+        if (rsi > 50) {
             lastTime = new Date(data[i][0]);
         }
     }
@@ -134,3 +134,4 @@ function sortTable(col, type) {
 // Iniciar
 updateTable();
 setInterval(updateTable, 300000); // cada 5 minutos
+
