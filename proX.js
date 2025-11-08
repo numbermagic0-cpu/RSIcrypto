@@ -120,6 +120,7 @@ async function updateRSIValues() {
 // Iniciar
 loadAllSymbols().then(() => {
     updateRSIValues();
-    setInterval(updateRSIValues, 10000); // cada 60 segundos
+    setInterval(updateRSIValues, 30000); // cada 60 segundos
 });
+
 
