@@ -3,45 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tabla de Futuros con RSI y EMA</title>
+    <title>RSI H1 Tracker</title>
     <style>
         body {
-            background-color: #77839b; /* Color de fondo gris */
+            background: #2c3e50;
+            color: #ecf0f1;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            text-align: center;
+        }
+        h1 {
+            margin-bottom: 10px;
+            font-size: 24px;
         }
         table {
             width: 100%;
             border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 14px;
         }
         th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
+            border: 1px solid #34495e;
+            padding: 10px;
             text-align: center;
         }
         th {
-            background-color: #f2f2f2;
+            background: #34495e;
             cursor: pointer;
+            user-select: none;
+            position: relative;
         }
-        .sorted-asc::after {
-            content: "🔼";
+        th:hover {
+            background: #2c3e50;
         }
-        .sorted-desc::after {
-            content: "🔽";
+        .loading {
+            font-style: italic;
+            color: #95a5a6;
+            padding: 20px;
         }
+        .sorted-asc::after { content: " up"; font-size: 12px; }
+        .sorted-desc::after { content: " down"; font-size: 12px; }
     </style>
 </head>
 <body>
-    <h1>Tabla de Futuros con RSI y EMA</h1>
+    <h1>RSI7 (H1) - Tiempo desde cierre >80</h1>
     <table id="cryptoPairs">
         <thead>
             <tr>
                 <th>Símbolo</th>
-                <th id="rsiHeader">RSI7 (1h) <span class="sort-indicator"></span></th>
-                <th id="emaHeader200">Diferencia con EMA200 (m15) <span class="sort-indicator"></span></th>
+                <th id="rsiHeader">RSI7 (H1)</th>
+                <th id="timeHeader">Tiempo desde >80</th>
             </tr>
         </thead>
         <tbody>
+            <tr><td colspan="3" class="loading">Cargando datos...</td></tr>
         </tbody>
     </table>
+
+    <!-- Tu archivo JS -->
     <script src="proX.js"></script>
 </body>
 </html>
