@@ -1,4 +1,4 @@
-// proX.js - RSI7 M15 (actualiza cada 60s + ordenar RSI con clic)
+// proX.js - RSI7 M15 (filtra RSI < 1 y RSI = 100) + ordenar + live update
 
 function calculateRSI(data, period = 7) {
     if (data.length < period + 1) return 0;
@@ -21,7 +21,7 @@ function calculateRSI(data, period = 7) {
 }
 
 let allSymbols = [];
-let sortDirection = 'desc'; // 'desc' = mayor a menor, 'asc' = menor a mayor
+let sortDirection = 'desc'; // 'desc' = mayor a menor
 
 // Cargar símbolos una vez
 async function loadAllSymbols() {
@@ -45,9 +45,10 @@ async function loadAllSymbols() {
             tbody.appendChild(row);
         }
 
-        // Activar ordenamiento al hacer clic en el encabezado RSI
-        document.querySelector('#rsiHeader').style.cursor = 'pointer';
-        document.querySelector('#rsiHeader').onclick = () => {
+        // Activar clic en encabezado RSI
+        const header = document.querySelector('#rsiHeader');
+        header.style.cursor = 'pointer';
+        header.onclick = () => {
             sortDirection = sortDirection === 'desc' ? 'asc' : 'desc';
             sortTableByRSI();
         };
@@ -57,7 +58,7 @@ async function loadAllSymbols() {
     }
 }
 
-// Ordenar tabla por RSI
+// Ordenar por RSI
 function sortTableByRSI() {
     const rows = Array.from(document.querySelectorAll('#cryptoPairs tbody tr'));
     rows.sort((a, b) => {
@@ -71,10 +72,9 @@ function sortTableByRSI() {
     rows.forEach(row => tbody.appendChild(row));
 }
 
-// Actualizar solo valores RSI
+// Actualizar RSI en vivo (filtra RSI < 1 y RSI = 100)
 async function updateRSIValues() {
-    const rows = document.querySelectorAll('#cryptoPairs tbody tr');
-    if (rows.length === 0 || allSymbols.length === 0) return;
+    if (allSymbols.length === 0) return;
 
     for (let i = 0; i < allSymbols.length; i += 10) {
         const batch = allSymbols.slice(i, i + 10);
@@ -87,18 +87,28 @@ async function updateRSIValues() {
                 if (data.length < 8) return;
 
                 const rsi = calculateRSI(data);
-                if (rsi === 100) return;
+                const rsiRounded = rsi.toFixed(2);
+
+                // FILTRAR: RSI < 1 o RSI = 100 → NO MOSTRAR
+                if (rsi < 1 || rsi === 100) {
+                    const row = document.getElementById(`row-${symbol}`);
+                    if (row) row.style.display = 'none'; // Ocultar fila
+                    return;
+                }
 
                 const rsiCell = document.querySelector(`#row-${symbol} .rsi-value`);
                 if (rsiCell) {
-                    const rsiRounded = rsi.toFixed(2);
                     rsiCell.textContent = rsiRounded;
                     rsiCell.style.backgroundColor = 
                         rsi >= 80 ? '#27ae60' : 
                         rsi <= 20 ? '#e74c3c' : 
                         'transparent';
+                    // Mostrar fila si estaba oculta
+                    document.getElementById(`row-${symbol}`).style.display = '';
                 }
-            } catch (e) {}
+            } catch (e) {
+                // Silenciar
+            }
         }));
         await new Promise(r => setTimeout(r, 50));
     }
@@ -110,5 +120,5 @@ async function updateRSIValues() {
 // Iniciar
 loadAllSymbols().then(() => {
     updateRSIValues();
-    setInterval(updateRSIValues, 60000); // cada 60s
+    setInterval(updateRSIValues, 60000); // cada 60 segundos
 });
