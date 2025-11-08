@@ -1,4 +1,4 @@
-// proX.js - RSI7 en M15 (SIN PROXY, SIN ERROR, FUNCIONA EN GITHUB PAGES)
+// proX.js - RSI7 M15 para TODOS los pares de futuros (SIN PROXY)
 
 function calculateRSI(data, period = 7) {
     if (data.length < period + 1) return 0;
@@ -22,48 +22,54 @@ function calculateRSI(data, period = 7) {
 
 async function updateTable() {
     const tbody = document.querySelector('#cryptoPairs tbody');
-    tbody.innerHTML = '<tr><td colspan="2" class="loading">Cargando...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="2" class="loading">Cargando todos los pares...</td></tr>';
 
-    // Lista fija de símbolos populares (evitamos fetch a /ticker/price)
-    const symbols = [
-        'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT',
-        'SOLUSDT', 'DOGEUSDT', 'DOTUSDT', 'MATICUSDT', 'AVAXUSDT',
-        'LINKUSDT', 'LTCUSDT', 'BCHUSDT', 'UNIUSDT', 'ATOMUSDT'
-    ];
+    try {
+        // 1. Obtener TODOS los símbolos (sin proxy)
+        const symbolsRes = await fetch('https://fapi.binance.com/fapi/v1/ticker/price');
+        if (!symbolsRes.ok) throw new Error('No se pudo cargar símbolos');
+        const symbolsData = await symbolsRes.json();
+        const symbolList = symbolsData.map(x => x.symbol);
 
-    tbody.innerHTML = '';
+        tbody.innerHTML = '';
 
-    for (const symbol of symbols) {
-        const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=15m&limit=100`;
-        
-        try {
-            const res = await fetch(url);
-            if (!res.ok) continue;
-            const data = await res.json();
-            if (data.length < 8) continue;
+        // 2. Procesar TODOS los símbolos (con delay para no saturar)
+        for (let i = 0; i < symbolList.length; i++) {
+            const symbol = symbolList[i];
+            const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=15m&limit=100`;
 
-            const rsi = calculateRSI(data).toFixed(2);
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${symbol}</td>
-                <td style="background-color: ${rsi >= 80 ? '#27ae60' : rsi <= 20 ? '#e74c3c' : 'transparent'}">
-                    ${rsi}
-                </td>
-            `;
-            tbody.appendChild(row);
+            try {
+                const res = await fetch(url);
+                if (!res.ok) continue;
+                const data = await res.json();
+                if (data.length < 8) continue;
 
-            // Pequeño delay para no saturar
-            await new Promise(r => setTimeout(r, 80));
-        } catch (e) {
-            console.log(`Error con ${symbol}`);
+                const rsi = calculateRSI(data).toFixed(2);
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${symbol}</td>
+                    <td style="background-color: ${rsi >= 80 ? '#27ae60' : rsi <= 20 ? '#e74c3c' : 'transparent'}">
+                        ${rsi}
+                    </td>
+                `;
+                tbody.appendChild(row);
+
+                // Delay para no bloquear
+                if (i % 10 === 0) await new Promise(r => setTimeout(r, 50));
+            } catch (e) {
+                console.log(`Error con ${symbol}`);
+            }
         }
-    }
 
-    if (tbody.children.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="2">Sin datos</td></tr>';
+        if (tbody.children.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="2">Sin datos</td></tr>';
+        }
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="2">Error de conexión</td></tr>';
+        console.error(e);
     }
 }
 
 // Iniciar
 updateTable();
-setInterval(updateTable, 300000); // 5 min
+setInterval(updateTable, 600000); // cada 10 min (para no saturar)
