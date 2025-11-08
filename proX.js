@@ -1,157 +1,141 @@
-// RSIm15ema.js - CON FIX DE CORS
+// RSIm15ema.js - VERSIÓN CORREGIDA CON PROXY (FUNCIONA EN GITHUB PAGES)
+
 const API_URL = 'https://corsproxy.io/?' + encodeURIComponent('https://fapi.binance.com/fapi/v1/ticker/price');
 
-// Función para calcular el RSI usando el cierre
+// RSI calculation
 function calculateRSI(data, period = 7) {
-    let gains = 0;
-    let losses = 0;
-
+    let gains = 0, losses = 0;
     for (let i = 1; i <= period; i++) {
-        const difference = data[i][4] - data[i - 1][4];
-        if (difference > 0) {
-            gains += difference;
-        } else {
-            losses -= difference;
-        }
+        const diff = data[i][4] - data[i - 1][4];
+        if (diff > 0) gains += diff;
+        else losses -= diff;
     }
-
-    let averageGain = gains / period;
-    let averageLoss = losses / period;
+    let avgGain = gains / period;
+    let avgLoss = losses / period;
 
     for (let i = period + 1; i < data.length; i++) {
-        const difference = data[i][4] - data[i - 1][4];
-        if (difference > 0) {
-            averageGain = ((averageGain * (period - 1)) + difference) / period;
-            averageLoss = (averageLoss * (period - 1)) / period;
+        const diff = data[i][4] - data[i - 1][4];
+        if (diff > 0) {
+            avgGain = ((avgGain * (period - 1)) + diff) / period;
+            avgLoss = (avgLoss * (period - 1)) / period;
         } else {
-            averageGain = (averageGain * (period - 1)) / period;
-            averageLoss = ((averageLoss * (period - 1)) - difference) / period;
+            avgGain = (avgGain * (period - 1)) / period;
+            avgLoss = ((avgLoss * (period - 1)) - diff) / period;
         }
     }
-
-    if (averageLoss === 0) {
-        return 100;
-    }
-
-    const rs = averageGain / averageLoss;
-    const rsi = 100 - (100 / (1 + rs));
-
-    return rsi;
+    if (avgLoss === 0) return 100;
+    const rs = avgGain / avgLoss;
+    return 100 - (100 / (1 + rs));
 }
 
+// Tiempo desde RSI > 80
 function getTimeSinceRSIClosedAbove80(data) {
     const period = 7;
-    let lastTimeRSIAbove80 = null;
-
+    let lastTime = null;
     for (let i = period; i < data.length; i++) {
-        const slice = data.slice(i - period, i + 1);
-        const rsi = calculateRSI(slice, period);
+        const rsi = calculateRSI(data.slice(i - period, i + 1), period);
         if (rsi > 80) {
-            lastTimeRSIAbove80 = new Date(data[i][0]);
+            lastTime = new Date(data[i][0]);
         }
     }
-
-    if (!lastTimeRSIAbove80) {
-        return 'No disponible';
-    }
-
-    const currentTime = new Date();
-    const timeDifference = currentTime - lastTimeRSIAbove80;
-    const minutes = Math.floor((timeDifference / 1000) / 60);
-    const hours = Math.floor(minutes / 60);
-
-    return `${String(hours).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+    if (!lastTime) return 'No disponible';
+    const diff = Date.now() - lastTime;
+    const mins = Math.floor(diff / 60000);
+    const hrs = Math.floor(mins / 60);
+    return `${String(hrs).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
 }
 
-function getFuturesPriceAndRSI(symbol) {
-    const historicalUrl = 'https://corsproxy.io/?' + encodeURIComponent(
+// Obtener RSI + tiempo
+async function getFuturesPriceAndRSI(symbol) {
+    const url = 'https://corsproxy.io/?' + encodeURIComponent(
         `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=1h&limit=50`
     );
-
-    const fetchRSI = (url) => {
-        return fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                const rsi7 = calculateRSI(data, 7);
-                const timeSinceRSI80 = getTimeSinceRSIClosedAbove80(data);
-                return { symbol, RSI7_H1: rsi7, timeSinceRSI80 };
-            })
-            .catch(error => {
-                console.error(`Error al obtener RSI para ${symbol}:`, error);
-                return { symbol, RSI7_H1: 'No disponible', timeSinceRSI80: 'No disponible' };
-            });
-    };
-
-    return fetchRSI(historicalUrl);
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+        const rsi = calculateRSI(data, 7);
+        const time = getTimeSinceRSIClosedAbove80(data);
+        return { symbol, RSI7_H1: rsi, timeSinceRSI80: time };
+    } catch (e) {
+        return { symbol, RSI7_H1: 'Error', timeSinceRSI80: 'Error' };
+    }
 }
 
-function getAllFuturesSymbols() {
-    return fetch(API_URL)
-        .then(response => response.json())
-        .then(data => data.map(pair => pair.symbol))
-        .catch(() => []);
+// Obtener símbolos
+async function getAllFuturesSymbols() {
+    try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        return data.map(p => p.symbol);
+    } catch {
+        return [];
+    }
 }
 
-function updateFuturesPairsTable() {
+// Actualizar tabla
+async function updateFuturesPairsTable() {
     const tbody = document.querySelector('#cryptoPairs tbody');
+    tbody.innerHTML = '<tr><td colspan="3">Cargando datos...</td></tr>';
+
+    const symbols = await getAllFuturesSymbols();
+    const results = await Promise.all(symbols.slice(0, 50).map(getFuturesPriceAndRSI)); // Limitar a 50 para no saturar
+
     tbody.innerHTML = '';
+    results.forEach(r => {
+        const rsi = parseFloat(r.RSI7_H1);
+        if (rsi === 100 || isNaN(rsi) || r.timeSinceRSI80 === 'No disponible') return;
 
-    getAllFuturesSymbols()
-        .then(symbols => {
-            Promise.all(symbols.map(getFuturesPriceAndRSI))
-                .then(results => {
-                    results.forEach(result => {
-                        const rsiValue = parseFloat(result.RSI7_H1);
-                        if (rsiValue === 100) return;
-                        if (result.timeSinceRSI80 === 'No disponible') return;
+        const row = document.createElement(' Ikea');
+        row.innerHTML = `
+            <td>${r.symbol}</td>
+            <td style="background-color: ${rsi >= 80 ? 'green' : rsi < 20 ? 'red' : 'transparent'};">
+                ${rsi.toFixed(2)}
+            </td>
+            <td>${r.timeSinceRSI80}</td>
+        `;
+        tbody.appendChild(row);
+    });
 
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${result.symbol}</td>
-                            <td style="background-color: ${rsiValue >= 80 ? 'green' : rsiValue < 20 ? 'red' : 'transparent'};">${rsiValue.toFixed(2)}</td>
-                            <td>${result.timeSinceRSI80}</td>
-                        `;
-                        tbody.appendChild(row);
-                    });
-                });
-        });
+    if (tbody.innerHTML === '') {
+        tbody.innerHTML = '<tr><td colspan="3">No hay datos disponibles</td></tr>';
+    }
 }
 
 // Ordenamiento
-let sortOrderRSI = 'asc', sortOrderTime = 'asc';
+let sortRSI = 'asc', sortTime = 'asc';
 
-document.getElementById('rsiHeader').addEventListener('click', () => {
+document.getElementById('rsiHeader').onclick = () => {
     const rows = Array.from(document.querySelectorAll('#cryptoPairs tbody tr'));
-    const sorted = rows.sort((a, b) => {
+    rows.sort((a, b) => {
         const av = parseFloat(a.cells[1].textContent);
         const bv = parseFloat(b.cells[1].textContent);
-        return sortOrderRSI === 'asc' ? av - bv : bv - av;
+        return sortRSI === 'asc' ? av - bv : bv - av;
     });
     const tbody = document.querySelector('#cryptoPairs tbody');
     tbody.innerHTML = '';
-    sorted.forEach(r => tbody.appendChild(r));
-    sortOrderRSI = sortOrderRSI === 'asc' ? 'desc' : 'asc';
-});
+    rows.forEach(r => tbody.appendChild(r));
+    sortRSI = sortRSI === 'asc' ? 'desc' : 'asc';
+};
 
-document.getElementById('timeHeader').addEventListener('click', () => {
+document.getElementById('timeHeader').onclick = () => {
     const rows = Array.from(document.querySelectorAll('#cryptoPairs tbody tr'));
-    const sorted = rows.sort((a, b) => {
-        const av = a.cells[2].textContent;
-        const bv = b.cells[2].textContent;
-        if (av === 'No disponible') return 1;
-        if (bv === 'No disponible') return -1;
-        const [ah, am] = av.split(':').map(Number);
-        const [bh, bm] = bv.split(':').map(Number);
+    rows.sort((a, b) => {
+        const at = a.cells[2].textContent;
+        const bt = b.cells[2].textContent;
+        if (at === 'No disponible') return 1;
+        if (bt === 'No disponible') return -1;
+        const [ah, am] = at.split(':').map(Number);
+        const [bh, bm] = bt.split(':').map(Number);
         const totalA = ah * 60 + am;
         const totalB = bh * 60 + bm;
-        return sortOrderTime === 'asc' ? totalA - totalB : totalB - totalA;
+        return sortTime === 'asc' ? totalA - totalB : totalB - totalA;
     });
     const tbody = document.querySelector('#cryptoPairs tbody');
     tbody.innerHTML = '';
-    sorted.forEach(r => tbody.appendChild(r));
-    sortOrderTime = sortOrderTime === 'asc' ? 'desc' : 'asc';
-});
+    rows.forEach(r => tbody.appendChild(r));
+    sortTime = sortTime === 'asc' ? 'desc' : 'asc';
+};
 
-// Auto-update
-setInterval(updateFuturesPairsTable, 300000); // cada 5 min
+// Iniciar
 updateFuturesPairsTable();
+setInterval(updateFuturesPairsTable, 300000); // cada 5 min
