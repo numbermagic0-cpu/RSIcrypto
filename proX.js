@@ -1,4 +1,4 @@
-// proX.js - RSI7 M15 para TODOS los pares (SIN RSI 100)
+// proX.js - RSI7 M15 (actualiza cada 60s, sin recargar, sin ralentizar)
 
 function calculateRSI(data, period = 7) {
     if (data.length < period + 1) return 0;
@@ -20,61 +20,74 @@ function calculateRSI(data, period = 7) {
     return 100 - (100 / (1 + avgGain / avgLoss));
 }
 
-async function updateTable() {
+// Cache de símbolos (para no recargar lista)
+let allSymbols = [];
+
+// Primera carga completa
+async function loadAllSymbols() {
     const tbody = document.querySelector('#cryptoPairs tbody');
-    tbody.innerHTML = '<tr><td colspan="2" class="loading">Cargando todos los pares...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="2" class="loading">Cargando pares...</td></tr>';
 
     try {
-        // 1. Obtener TODOS los símbolos
-        const symbolsRes = await fetch('https://fapi.binance.com/fapi/v1/ticker/price');
-        if (!symbolsRes.ok) throw new Error('No se pudo cargar símbolos');
-        const symbolsData = await symbolsRes.json();
-        const symbolList = symbolsData.map(x => x.symbol);
+        const res = await fetch('https://fapi.binance.com/fapi/v1/ticker/price');
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        allSymbols = data.map(x => x.symbol);
 
         tbody.innerHTML = '';
-
-        // 2. Procesar cada símbolo
-        for (let i = 0; i < symbolList.length; i++) {
-            const symbol = symbolList[i];
-            const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=15m&limit=100`;
-
-            try {
-                const res = await fetch(url);
-                if (!res.ok) continue;
-                const data = await res.json();
-                if (data.length < 8) continue;
-
-                const rsi = calculateRSI(data);
-                const rsiRounded = rsi.toFixed(2);
-
-                // FILTRAR: NO MOSTRAR RSI = 100
-                if (rsi === 100) continue;
-
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${symbol}</td>
-                    <td style="background-color: ${rsi >= 80 ? '#27ae60' : rsi <= 20 ? '#e74c3c' : 'transparent'}">
-                        ${rsiRounded}
-                    </td>
-                `;
-                tbody.appendChild(row);
-
-                // Pequeño delay cada 10 símbolos
-                if (i % 10 === 0) await new Promise(r => setTimeout(r, 50));
-            } catch (e) {
-                console.log(`Error con ${symbol}`);
-            }
-        }
-
-        if (tbody.children.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="2">No hay datos válidos (todos RSI 100)</td></tr>';
+        for (const symbol of allSymbols) {
+            const row = document.createElement('tr');
+            row.id = `row-${symbol}`;
+            row.innerHTML = `
+                <td>${symbol}</td>
+                <td class="rsi-value" style="background-color:transparent">—</td>
+            `;
+            tbody.appendChild(row);
         }
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="2">Error de conexión</td></tr>';
-        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="2">Error cargando símbolos</td></tr>';
+    }
+}
+
+// Actualizar solo RSI (sin tocar estructura)
+async function updateRSIValues() {
+    const rows = document.querySelectorAll('#cryptoPairs tbody tr');
+    if (rows.length === 0 || allSymbols.length === 0) return;
+
+    // Procesar en lotes de 10 para no bloquear UI
+    for (let i = 0; i < allSymbols.length; i += 10) {
+        const batch = allSymbols.slice(i, i + 10);
+        await Promise.all(batch.map(async (symbol) => {
+            try {
+                const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=15m&limit=100`;
+                const res = await fetch(url);
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data.length < 8) return;
+
+                const rsi = calculateRSI(data);
+                if (rsi === 100) return; // Ocultar RSI 100
+
+                const rsiCell = document.querySelector(`#row-${symbol} .rsi-value`);
+                if (rsiCell) {
+                    const rsiRounded = rsi.toFixed(2);
+                    rsiCell.textContent = rsiRounded;
+                    rsiCell.style.backgroundColor = 
+                        rsi >= 80 ? '#27ae60' : 
+                        rsi <= 20 ? '#e74c3c' : 
+                        'transparent';
+                }
+            } catch (e) {
+                // Silenciar errores individuales
+            }
+        }));
+        // Pequeña pausa entre lotes
+        await new Promise(r => setTimeout(r, 50));
     }
 }
 
 // Iniciar
-updateTable();
-setInterval(updateTable, 600000); // cada 10 min
+loadAllSymbols().then(() => {
+    updateRSIValues(); // Primera actualización
+    setInterval(updateRSIValues, 60000); // Cada 60 segundos
+});
