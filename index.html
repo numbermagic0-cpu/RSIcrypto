@@ -3,27 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RSI7 M15</title>
+    <title>RSI7 M15 - Todos los Pares</title>
     <style>
-        body { background:#1a1a1a; color:#fff; font-family:Arial; margin:20px; text-align:center; }
-        h1 { font-size:22px; margin-bottom:10px; }
-        table { width:100%; border-collapse:collapse; font-size:14px; }
-        th, td { border:1px solid #333; padding:8px; text-align:center; }
-        th { background:#222; }
-        .loading { color:#888; font-style:italic; padding:20px; }
+        body { 
+            background:#0f0f0f; 
+            color:#fff; 
+            font-family:Arial; 
+            margin:20px; 
+            text-align:center; 
+        }
+        h1 { 
+            font-size:22px; 
+            margin-bottom:5px; 
+        }
+        .info { 
+            font-size:14px; 
+            color:#aaa; 
+            margin-bottom:15px; 
+        }
+        .table-container { 
+            max-height: 80vh; 
+            overflow-y: auto; 
+            border: 1px solid #333; 
+        }
+        table { 
+            width:100%; 
+            border-collapse:collapse; 
+            font-size:13px; 
+        }
+        th, td { 
+            border:1px solid #222; 
+            padding:6px; 
+            text-align:center; 
+        }
+        th { 
+            background:#111; 
+            position:sticky; 
+            top:0; 
+            z-index:10; 
+        }
+        .loading { 
+            color:#888; 
+            font-style:italic; 
+            padding:20px; 
+        }
     </style>
 </head>
 <body>
-    <h1>RSI7 (15 minutos)</h1>
-    <p>Verde = >80 | Rojo = <20</p>
-    <table id="cryptoPairs">
-        <thead>
-            <tr><th>Símbolo</th><th>RSI7 (M15)</th></tr>
-        </thead>
-        <tbody>
-            <tr><td colspan="2" class="loading">Cargando...</td></tr>
-        </tbody>
-    </table>
+    <h1>RSI7 (15 minutos) - Todos los Pares de Futuros</h1>
+    <p class="info">Verde = Sobrecompra (>80) | Rojo = Sobreventa (<20)</p>
+    
+    <div class="table-container">
+        <table id="cryptoPairs">
+            <thead>
+                <tr><th>Símbolo</th><th>RSI7 (M15)</th></tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="2" class="loading">Cargando todos los pares...</td></tr>
+            </tbody>
+        </table>
+    </div>
 
     <script src="proX.js"></script>
 </body>
