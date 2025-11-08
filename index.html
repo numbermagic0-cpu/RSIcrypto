@@ -3,45 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tabla de Futuros con RSI y EMA</title>
+    <title>RSI7 M15</title>
     <style>
-        body {
-            background-color: #77839b; /* Color de fondo gris */
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: center;
-        }
-        th {
-            background-color: #f2f2f2;
-            cursor: pointer;
-        }
-        .sorted-asc::after {
-            content: "🔼";
-        }
-        .sorted-desc::after {
-            content: "🔽";
-        }
+        body { background:#1a1a1a; color:#fff; font-family:Arial; margin:20px; text-align:center; }
+        h1 { font-size:22px; margin-bottom:10px; }
+        table { width:100%; border-collapse:collapse; font-size:14px; }
+        th, td { border:1px solid #333; padding:8px; text-align:center; }
+        th { background:#222; }
+        .loading { color:#888; font-style:italic; padding:20px; }
     </style>
 </head>
 <body>
-    <h1>Tabla de Futuros con RSI y EMA</h1>
+    <h1>RSI7 (15 minutos)</h1>
+    <p>Verde = >80 | Rojo = <20</p>
     <table id="cryptoPairs">
         <thead>
-            <tr>
-                <th>Símbolo</th>
-                <th id="rsiHeader">RSI7 (1h) <span class="sort-indicator"></span></th>
-                <th id="emaHeader200">Diferencia con EMA200 (m15) <span class="sort-indicator"></span></th>
-            </tr>
+            <tr><th>Símbolo</th><th>RSI7 (M15)</th></tr>
         </thead>
         <tbody>
+            <tr><td colspan="2" class="loading">Cargando...</td></tr>
         </tbody>
     </table>
-    <script src="RSIm15ema.js"></script>
+
+    <script src="proX.js"></script>
 </body>
 </html>
